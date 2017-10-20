@@ -486,7 +486,8 @@ int mca_btl_tcp_proc_insert( mca_btl_tcp_proc_t* btl_proc,
         }
 
         /*
-         * in case the peer address has all intended connections,
+
+         * in case the peer address has created all intended connections,
          * mark the complete peer interface as 'not available'
          */
         if(endpoint_addr->addr_inuse >=  mca_btl_tcp_component.tcp_num_links) {
@@ -812,10 +813,8 @@ void mca_btl_tcp_proc_accept(mca_btl_tcp_proc_t* btl_proc, struct sockaddr* addr
     OPAL_THREAD_LOCK(&btl_proc->proc_lock);
     for( size_t i = 0; i < btl_proc->proc_endpoint_count; i++ ) {
         mca_btl_base_endpoint_t* btl_endpoint = btl_proc->proc_endpoints[i];
-        /* We are not here to make a decision about what is good socket
-         * and what is not. We simply check that this socket fit the endpoint
-         * end we prepare for the real decision function mca_btl_tcp_endpoint_accept. */
-        if( btl_endpoint->endpoint_addr->addr_family != addr->sa_family ) {
+        /* Check all conditions before going to try to accept the connection. */
+        if( btl_endpoint->endpoint_addr->addr_family != addr->sa_family || btl_endpoint->endpoint_state != MCA_BTL_TCP_CLOSED ) {
             continue;
         }
         switch (addr->sa_family) {
@@ -857,6 +856,8 @@ void mca_btl_tcp_proc_accept(mca_btl_tcp_proc_t* btl_proc, struct sockaddr* addr
             ;
         }
 
+        /* Setting the connection state here to avoid a race condition when multiple tcp links are being added */
+        btl_endpoint->endpoint_state = MCA_BTL_TCP_CONNECTING;
         (void)mca_btl_tcp_endpoint_accept(btl_endpoint, addr, sd);
         OPAL_THREAD_UNLOCK(&btl_proc->proc_lock);
         return;
