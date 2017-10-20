@@ -70,6 +70,7 @@
 #include "orte/util/show_help.h"
 #include "orte/util/threads.h"
 #include "orte/runtime/orte_globals.h"
+#include "orte/runtime/orte_data_server.h"
 
 #include "pmix_server.h"
 #include "pmix_server_internal.h"
@@ -272,8 +273,10 @@ int pmix_server_init(void)
     }
 
     /* if requested, tell the server to drop a system-level
-     * PMIx connection point */
-    if (orte_pmix_server_globals.system_server) {
+     * PMIx connection point - only do this for the HNP as, in
+     * at least one case, a daemon can be colocated with the
+     * HNP and would overwrite the server rendezvous file */
+    if (orte_pmix_server_globals.system_server && ORTE_PROC_IS_HNP) {
         kv = OBJ_NEW(opal_value_t);
         kv->key = strdup(OPAL_PMIX_SERVER_SYSTEM_SUPPORT);
         kv->type = OPAL_BOOL;
@@ -293,6 +296,9 @@ int pmix_server_init(void)
 
 void pmix_server_start(void)
 {
+    /* setup our local data server */
+    orte_data_server_init();
+
     /* setup recv for direct modex requests */
      orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD, ORTE_RML_TAG_DIRECT_MODEX,
                              ORTE_RML_PERSISTENT, pmix_server_dmdx_recv, NULL);
@@ -330,6 +336,9 @@ void pmix_server_finalize(void)
     orte_rml.recv_cancel(ORTE_NAME_WILDCARD, ORTE_RML_TAG_LAUNCH_RESP);
     orte_rml.recv_cancel(ORTE_NAME_WILDCARD, ORTE_RML_TAG_DATA_CLIENT);
     orte_rml.recv_cancel(ORTE_NAME_WILDCARD, ORTE_RML_TAG_NOTIFICATION);
+
+    /* finalize our local data server */
+    orte_data_server_finalize();
 
     /* shutdown the local server */
     opal_pmix.server_finalize();

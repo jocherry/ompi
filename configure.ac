@@ -1419,13 +1419,9 @@ AC_CONFIG_FILES([
     test/support/Makefile
     test/threads/Makefile
     test/util/Makefile
-    test/symbol_name/Makefile
 ])
+
 m4_ifdef([project_ompi], [AC_CONFIG_FILES([test/monitoring/Makefile])])
-m4_ifdef([project_ompi], [
-          m4_ifdef([MCA_BUILD_ompi_pml_monitoring_DSO_TRUE],
-                   [AC_CONFIG_LINKS(test/monitoring/profile2mat.pl:test/monitoring/profile2mat.pl
-                                    test/monitoring/aggregate_profile.pl:test/monitoring/aggregate_profile.pl)])])
 
 AC_CONFIG_FILES([contrib/dist/mofed/debian/rules],
                 [chmod +x contrib/dist/mofed/debian/rules])

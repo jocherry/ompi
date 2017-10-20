@@ -136,6 +136,9 @@ General notes
     with Oracle Solaris Studio 12.5
   - OpenBSD.  Requires configure options --enable-mca-no-build=patcher
     and --disable-slopen with this release.
+  - Problems have been reported when building Open MPI on FreeBSD 11.1
+    using the clang-4.0 system compiler. A workaround is to build
+    Open MPI using the GNU compiler.
 
 Compiler Notes
 --------------
@@ -276,9 +279,6 @@ Compiler Notes
   version of the Intel 12.1 Linux compiler suite, the problem will go
   away.
 
-- It has been reported that Pathscale 5.0.5 and 6.0.527 compilers
-  give an internal compiler error when trying to Open MPI.
-
 - Early versions of the Portland Group 6.0 compiler have problems
   creating the C++ MPI bindings as a shared library (e.g., v6.0-1).
   Tests with later versions show that this has been fixed (e.g.,
@@ -299,6 +299,9 @@ Compiler Notes
   also automatically add "-Msignextend" when the C and C++ MPI wrapper
   compilers are used to compile user MPI applications.
 
+- It has been reported that Pathscale 5.0.5 and 6.0.527 compilers
+  give an internal compiler error when trying to Open MPI.
+
 - Using the MPI C++ bindings with older versions of the Pathscale
   compiler on some platforms is an old issue that seems to be a
   problem when Pathscale uses a back-end GCC 3.x compiler. Here's a
@@ -316,6 +319,12 @@ Compiler Notes
 
   Note the MPI C++ bindings have been deprecated by the MPI Forum and
   may not be supported in future releases.
+
+- As of July 2017, the Pathscale compiler suite apparently has no
+  further commercial support, and it does not look like there will be
+  further releases.  Any issues discovered regarding building /
+  running Open MPI with the Pathscale compiler suite therefore may not
+  be able to be resolved.
 
 - Using the Absoft compiler to build the MPI Fortran bindings on Suse
   9.3 is known to fail due to a Libtool compatibility issue.
@@ -828,6 +837,33 @@ INSTALLATION OPTIONS
   Open MPI libraries.  You can control whether Open MPI's libraries
   are build as static or dynamic via --enable|disable-static and
   --enable|disable-shared.
+
+--disable-show-load-errors-by-default
+  Set the default value of the mca_base_component_show_load_errors MCA
+  variable: the --enable form of this option sets the MCA variable to
+  true, the --disable form sets the MCA variable to false.  The MCA
+  mca_base_component_show_load_errors variable can still be overridden
+  at run time via the usual MCA-variable-setting mechanisms; this
+  configure option simply sets the default value.
+
+  The --disable form of this option is intended for Open MPI packagers
+  who tend to enable support for many different types of networks and
+  systems in their packages.  For example, consider a packager who
+  includes support for both the FOO and BAR networks in their Open MPI
+  package, both of which require support libraries (libFOO.so and
+  libBAR.so).  If an end user only has BAR hardware, they likely only
+  have libBAR.so available on their systems -- not libFOO.so.
+  Disabling load errors by default will prevent the user from seeing
+  potentially confusing warnings about the FOO components failing to
+  load because libFOO.so is not available on their systems.
+
+  Conversely, system administrators tend to build an Open MPI that is
+  targeted at their specific environment, and contains few (if any)
+  components that are not needed.  In such cases, they might want
+  their users to be warned that the FOO network components failed to
+  load (e.g., if libFOO.so was mistakenly unavailable), because Open
+  MPI may otherwise silently failover to a slower network path for MPI
+  traffic.
 
 --with-platform=FILE
   Load configure options for the build from FILE.  Options on the
@@ -1433,7 +1469,7 @@ NOTE: The version numbering conventions were changed with the release
       release schedule to indicate feature development vs. stable
       releases.  See the README in releases prior to v1.10.0 for more
       information (e.g.,
-      https://github.com/open-mpi/ompi-release/blob/v1.8/README#L1392-L1475).
+      https://github.com/open-mpi/ompi/blob/v1.8/README#L1392-L1475).
 
 Backwards Compatibility
 -----------------------

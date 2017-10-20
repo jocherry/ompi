@@ -463,6 +463,10 @@ static void *mca_btl_tcp_endpoint_complete_accept(int fd, int flags, void *conte
         mca_btl_tcp_endpoint_event_init(btl_endpoint);
         MCA_BTL_TCP_ENDPOINT_DUMP(10, btl_endpoint, true, "event_add(recv) [endpoint_accept]");
         opal_event_add(&btl_endpoint->endpoint_recv_event, 0);
+        if( mca_btl_tcp_event_base == opal_sync_event_base ) {
+            /* If no progress thread then raise the awarness of the default progress engine */
+            opal_progress_event_users_increment();
+        }
         mca_btl_tcp_endpoint_connected(btl_endpoint);
 
         MCA_BTL_TCP_ENDPOINT_DUMP(10, btl_endpoint, true, "accepted");
@@ -512,6 +516,10 @@ void mca_btl_tcp_endpoint_close(mca_btl_base_endpoint_t* btl_endpoint)
     btl_endpoint->endpoint_retries++;
     MCA_BTL_TCP_ENDPOINT_DUMP(1, btl_endpoint, false, "event_del(recv) [close]");
     opal_event_del(&btl_endpoint->endpoint_recv_event);
+    if( mca_btl_tcp_event_base == opal_sync_event_base ) {
+        /* If no progress thread then lower the awarness of the default progress engine */
+        opal_progress_event_users_decrement();
+    }
     MCA_BTL_TCP_ENDPOINT_DUMP(1, btl_endpoint, false, "event_del(send) [close]");
     opal_event_del(&btl_endpoint->endpoint_send_event);
 
@@ -567,20 +575,6 @@ static void mca_btl_tcp_endpoint_connected(mca_btl_base_endpoint_t* btl_endpoint
 
 
 /*
- * A blocking recv on a non-blocking socket. Used to receive the small
- * amount of connection information that identifies the remote endpoint (guid).
- */
-static int mca_btl_tcp_endpoint_recv_blocking(mca_btl_base_endpoint_t* btl_endpoint, void* data, size_t size)
-{
-    int ret = mca_btl_tcp_recv_blocking(btl_endpoint->endpoint_sd, data, size);
-    if (ret <= 0) {
-        mca_btl_tcp_endpoint_close(btl_endpoint);
-    }
-    return ret;
-}
-
-
-/*
  *  Receive the endpoints globally unique process identification from a newly
  *  connected socket and verify the expected response. If so, move the
  *  socket to a connected state.
@@ -596,9 +590,10 @@ static int mca_btl_tcp_endpoint_recv_connect_ack(mca_btl_base_endpoint_t* btl_en
     opal_process_name_t guid;
 
     mca_btl_tcp_endpoint_hs_msg_t hs_msg;
-    retval = mca_btl_tcp_endpoint_recv_blocking(btl_endpoint, &hs_msg, sizeof(hs_msg));
+    retval = mca_btl_tcp_recv_blocking(btl_endpoint->endpoint_sd, &hs_msg, sizeof(hs_msg));
 
     if (sizeof(hs_msg) != retval) {
+        mca_btl_tcp_endpoint_close(btl_endpoint);
         if (0 == retval) {
             /* If we get zero bytes, the peer closed the socket. This
                can happen when the two peers started the connection
@@ -739,6 +734,10 @@ static int mca_btl_tcp_endpoint_start_connect(mca_btl_base_endpoint_t* btl_endpo
             btl_endpoint->endpoint_state = MCA_BTL_TCP_CONNECT_ACK;
             MCA_BTL_TCP_ENDPOINT_DUMP(10, btl_endpoint, true, "event_add(recv) [start_connect]");
             opal_event_add(&btl_endpoint->endpoint_recv_event, 0);
+            if( mca_btl_tcp_event_base == opal_sync_event_base ) {
+                /* If no progress thread then raise the awarness of the default progress engine */
+                opal_progress_event_users_increment();
+            }
             return OPAL_SUCCESS;
         }
         /* We connected to the peer, but he close the socket before we got a chance to send our guid */
@@ -826,6 +825,10 @@ static int mca_btl_tcp_endpoint_complete_connect(mca_btl_base_endpoint_t* btl_en
     if(mca_btl_tcp_endpoint_send_connect_ack(btl_endpoint) == OPAL_SUCCESS) {
         btl_endpoint->endpoint_state = MCA_BTL_TCP_CONNECT_ACK;
         opal_event_add(&btl_endpoint->endpoint_recv_event, 0);
+        if( mca_btl_tcp_event_base == opal_sync_event_base ) {
+            /* If no progress thread then raise the awarness of the default progress engine */
+            opal_progress_event_users_increment();
+        }
         MCA_BTL_TCP_ENDPOINT_DUMP(10, btl_endpoint, false, "event_add(recv) [complete_connect]");
         return OPAL_SUCCESS;
     }
